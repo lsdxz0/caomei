@@ -1,9 +1,10 @@
 from PyQt6.QtWidgets import (QToolBar, QPushButton, QSpinBox,
                                  QComboBox, QLabel, QRadioButton, QFileDialog,
                                  QVBoxLayout, QHBoxLayout, QWidget, QLineEdit, QMessageBox, QGroupBox,
-                                 QTableWidgetItem, QScrollBar)
+                                 QTableWidgetItem, QScrollBar, QGridLayout)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QThread, QDateTime
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtGui import QIntValidator
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -65,7 +66,7 @@ class PDFWorker(QObject):
             self.error.emit(str(e))
 
 class PDFTab(BaseTab):
-    # 定义信号
+    # 定义���
     processing_started = pyqtSignal()
     processing_finished = pyqtSignal()
     processing_paused = pyqtSignal()
@@ -127,65 +128,86 @@ class PDFTab(BaseTab):
         return toolbar
         
     def setup_settings_ui(self, layout):
-            """设置PDF转换的设置界面"""
-            # 设置区域
-            settings_widget = QWidget()
-            settings_layout = QVBoxLayout()
-            
-            # 转换设置组
-            convert_group = QGroupBox("转换设置")
-            convert_layout = QVBoxLayout()
-            
-            # DPI设置
-            dpi_widget = QWidget()
-            dpi_layout = QHBoxLayout()
-            dpi_layout.setContentsMargins(0, 0, 0, 0)
-            
-            self.dpi_combo = QComboBox()
-            dpi_values = ["150", "300", "600"]
-            self.dpi_combo.addItems(dpi_values)
-            self.dpi_combo.setCurrentText("150")  # 设置默认值为150
-            
-            dpi_layout.addWidget(QLabel("分辨率"))
-            dpi_layout.addWidget(self.dpi_combo)
-            dpi_layout.addWidget(QLabel("DPI"))
-            dpi_layout.addStretch()
-            
-            dpi_widget.setLayout(dpi_layout)
-            convert_layout.addWidget(dpi_widget)
-
-            # 间隔设置
-            interval_widget = QWidget()
-            interval_layout = QHBoxLayout()
-            interval_layout.setContentsMargins(0, 0, 0, 0)
-            
-            self.interval_combo = QComboBox()
-            interval_values = ["0 (处理所有页面)"] + [str(i) for i in range(1, 11)]
-            self.interval_combo.addItems(interval_values)
-            
-            interval_layout.addWidget(QLabel("处理间隔"))
-            interval_layout.addWidget(self.interval_combo)
-            interval_layout.addStretch()
-            
-            interval_widget.setLayout(interval_layout)
-            convert_layout.addWidget(interval_widget)
-            
-            convert_group.setLayout(convert_layout)
-            settings_layout.addWidget(convert_group)
-            
-            # 输出设置（使用基类的设置）
-            output_group = QGroupBox("输出设置")
-            output_layout = QVBoxLayout()
-            super().setup_settings_ui(output_layout)
-            output_group.setLayout(output_layout)
-            settings_layout.addWidget(output_group)
-            
-            # 设置默认输出文件夹名
-            self.output_name.setText("pdf_output")
-            
-            settings_layout.addStretch()
-            settings_widget.setLayout(settings_layout)
-            layout.addWidget(settings_widget)
+        """设置PDF转换的设置界面"""
+        # 设置区域
+        settings_widget = QWidget()
+        settings_layout = QVBoxLayout()
+        
+        # 转换设置组
+        convert_group = QGroupBox("转换设置")
+        convert_layout = QGridLayout()  # 使用网格布局
+        
+        # DPI设置
+        dpi_label = QLabel("分辨率(DPI):")
+        self.dpi_combo = QComboBox()
+        dpi_values = ["100", "150", "200", "300", "400", "600"]
+        self.dpi_combo.addItems(dpi_values)
+        self.dpi_combo.setEditable(True)  # 允许自定义输入
+        self.dpi_combo.setCurrentText("150")  # 设置默认值
+        
+        # DPI输入验证
+        dpi_validator = QIntValidator(72, 1200, self)  # DPI范围限制
+        self.dpi_combo.setValidator(dpi_validator)
+        
+        # 格式设置
+        format_label = QLabel("输出格式:")
+        self.format_combo = QComboBox()
+        self.format_combo.addItems(["PNG", "JPG"])
+        
+        # JPG质量设置
+        quality_label = QLabel("JPG质量:")
+        self.quality_spin = QSpinBox()
+        self.quality_spin.setRange(1, 100)
+        self.quality_spin.setValue(95)
+        self.quality_spin.setSuffix("%")
+        self.quality_spin.setEnabled(False)  # 初始禁用
+        
+        # 处理间隔设置
+        interval_label = QLabel("处理间隔:")
+        self.interval_combo = QComboBox()
+        self.interval_combo.setEditable(True)
+        interval_items = ["0", "1", "2", "3", "5", "10"]
+        self.interval_combo.addItems(interval_items)
+        
+        # 添加数字验证器
+        interval_validator = QIntValidator(0, 100, self)
+        self.interval_combo.setValidator(interval_validator)
+        
+        # 设置默认值
+        self.interval_combo.setCurrentText("0")
+        
+        # 添加提示文本
+        self.interval_combo.setToolTip("输入0-100的数字，0表示处理所有页面")
+        
+        # 添加到网格布局
+        convert_layout.addWidget(dpi_label, 0, 0)
+        convert_layout.addWidget(self.dpi_combo, 0, 1)
+        convert_layout.addWidget(format_label, 1, 0)
+        convert_layout.addWidget(self.format_combo, 1, 1)
+        convert_layout.addWidget(quality_label, 2, 0)
+        convert_layout.addWidget(self.quality_spin, 2, 1)
+        convert_layout.addWidget(interval_label, 3, 0)
+        convert_layout.addWidget(self.interval_combo, 3, 1)
+        
+        convert_group.setLayout(convert_layout)
+        settings_layout.addWidget(convert_group)
+        
+        # 输出设置（使用基类的设置）
+        output_group = QGroupBox("输出设置")
+        output_layout = QVBoxLayout()
+        super().setup_settings_ui(output_layout)
+        output_group.setLayout(output_layout)
+        settings_layout.addWidget(output_group)
+        
+        # 设置默认输出文件夹名
+        self.output_name.setText("pdf_output")
+        
+        settings_layout.addStretch()
+        settings_widget.setLayout(settings_layout)
+        layout.addWidget(settings_widget)
+        
+        # 连接信号
+        self.format_combo.currentTextChanged.connect(self.on_format_changed)
         
     def create_control_buttons(self):
         """创建控制按钮"""
@@ -532,3 +554,71 @@ class PDFTab(BaseTab):
                 
         self.cleanup()
         super().closeEvent(event)
+
+    def on_format_changed(self, format_text):
+        """处理输出格式变更"""
+        # 当选择JPG格式时启用质量设置
+        self.quality_spin.setEnabled(format_text == "JPG")
+
+    def get_processing_params(self):
+        """获取处理参数"""
+        # 获取DPI值
+        try:
+            dpi = int(self.dpi_combo.currentText())
+            if not (72 <= dpi <= 1200):
+                raise ValueError("DPI值必须在72-1200之间")
+        except ValueError:
+            raise ValueError("请输入有效的DPI值")
+        
+        # 获取输出格式和质量
+        output_format = self.format_combo.currentText()
+        quality = self.quality_spin.value() if output_format == "JPG" else None
+        
+        # 解析处理间隔
+        interval_text = self.interval_combo.currentText()
+        try:
+            # 提取数字部分
+            interval = int(interval_text.split()[0])
+            if not (0 <= interval <= 100):
+                raise ValueError("处理间隔必须在0-100之间")
+        except ValueError:
+            raise ValueError("请输入有效的处理间隔")
+        
+        return {
+            'dpi': dpi,
+            'format': output_format,
+            'quality': quality,
+            'interval': interval,
+            'output_config': self.get_output_config()
+        }
+
+    def validate_settings(self):
+        """验证设置是否有效"""
+        try:
+            # 验证DPI值
+            dpi = int(self.dpi_combo.currentText())
+            if not (72 <= dpi <= 1200):
+                QMessageBox.warning(self, "警告", "DPI值必须在72-1200之间")
+                return False
+            
+            # 验证输出路径
+            if self.output_custom.isChecked() and not self.output_path.text():
+                QMessageBox.warning(self, "警告", "请选择输出目录")
+                return False
+            
+            # 验证处理间隔
+            interval_text = self.interval_combo.currentText()
+            try:
+                interval = int(interval_text.split()[0])
+                if not (0 <= interval <= 100):
+                    QMessageBox.warning(self, "警告", "处理间隔必须在0-100之间")
+                    return False
+            except ValueError:
+                QMessageBox.warning(self, "警告", "请输入有效的处理间隔")
+                return False
+            
+            return True
+            
+        except ValueError as e:
+            QMessageBox.warning(self, "警告", str(e))
+            return False
